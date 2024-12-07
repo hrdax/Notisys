@@ -3,45 +3,37 @@ package com.example.notisys
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.*
+import com.example.notisys.ui.DashboardScreen
+import com.example.notisys.ui.LoginScreen
+import com.example.notisys.ui.MiniChatScreen
 import com.example.notisys.ui.theme.NotisysTheme
-// aaa
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             NotisysTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                // Estado para manejar la navegación entre pantallas
+                var currentScreen by remember { mutableStateOf("login") }
+                var selectedRamo by remember { mutableStateOf("") }
+
+                // Lógica de navegación basada en el estado actual
+                when (currentScreen) {
+                    "login" -> LoginScreen(onLoginSuccess = { currentScreen = "dashboard" })
+                    "dashboard" -> DashboardScreen(
+                        onRamoClick = { ramo ->
+                            selectedRamo = ramo
+                            currentScreen = "miniChat"
+                        },
+                        onLogout = { currentScreen = "login" } // Maneja el evento de cerrar sesión
+                    )
+                    "miniChat" -> MiniChatScreen(
+                        ramo = selectedRamo,
+                        onBack = { currentScreen = "dashboard" }
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    NotisysTheme {
-        Greeting("Android")
     }
 }
