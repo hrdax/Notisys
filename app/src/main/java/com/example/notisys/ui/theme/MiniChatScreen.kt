@@ -6,13 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,23 +15,46 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
-    var message by remember { mutableStateOf("") }
-    var isMenuExpanded by remember { mutableStateOf(false) }
-    var showModal by remember { mutableStateOf(false) }
-    var selectedOption by remember { mutableStateOf("Información") } // Para la selección en el modal
-    var modalMessage by remember { mutableStateOf("") } // Mensaje del modal
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+    val currentUser = auth.currentUser
+    val currentUid = currentUser?.uid
 
-    val messages = listOf(
-        Pair("Profesor lucho", "No hay sistema"),
-        Pair("Delegado Marcelo", "https://youtu.be/o9OHcPv-26k?si=9Dlcy2POHlzaqju"),
-        Pair("Profesor lucho", "Si hay examen")
+    // Mapeo de UID a autores
+    val userMap = mapOf(
+        "X9tGXRvx2nUVzOAtOE3bB6jgGIh1" to "Profe Lucho",
+        "iZceWvVPMBSx0WUz0PVO3QPlThx1" to "Delegado Marcelo"
     )
+
+    // Lista para almacenar mensajes desde Firestore
+    var messages by remember { mutableStateOf(listOf<Pair<String, String>>()) }
+    var message by remember { mutableStateOf("") }
+
+    // Cargar mensajes de Firestore
+    LaunchedEffect(Unit) {
+        firestore.collection("mensajes")
+            .whereEqualTo("ramo", ramo) // Filtrar por ramo
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    println("Error al cargar mensajes: ${error.message}")
+                    return@addSnapshotListener
+                }
+                val newMessages = snapshot?.documents?.map { doc ->
+                    Pair(
+                        doc.getString("autor") ?: "Desconocido",
+                        doc.getString("contenido") ?: ""
+                    )
+                } ?: listOf()
+                messages = newMessages
+            }
+    }
 
     // Manejar el botón de atrás del dispositivo
     BackHandler(onBack = onBack)
@@ -48,7 +65,7 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
             .background(Color(0xFFF8F8F8))
             .padding(16.dp)
     ) {
-        // Barra superior con el título del ramo y opciones
+        // Barra superior
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -60,111 +77,47 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
                     fontWeight = FontWeight.Bold
                 )
             )
-            Box {
-                IconButton(onClick = { isMenuExpanded = !isMenuExpanded }) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Opciones")
-                }
-                DropdownMenu(
-                    expanded = isMenuExpanded,
-                    onDismissRequest = { isMenuExpanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Crear notificación") },
-                        onClick = {
-                            isMenuExpanded = false
-                            showModal = true // Muestra el modal
-                        }
-                    )
-                }
-            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Mensajes del chat
-        Column(modifier = Modifier.weight(1f)) {
-            for ((sender, content) in messages) {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    Text(
-                        text = sender,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF2D2D2D)
+        // Mostrar mensajes o texto de "No hay mensajes"
+        if (messages.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No hay mensajes en el chat.",
+                    style = MaterialTheme.typography.bodyLarge.copy(color = Color.Gray)
+                )
+            }
+        } else {
+            Column(modifier = Modifier.weight(1f)) {
+                for ((sender, content) in messages) {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        Text(
+                            text = sender,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF2D2D2D)
+                            )
                         )
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    if (content == "Si hay examen") {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.75f)
                                 .background(
-                                    Color(0xFFDCE8FF),
-                                    shape = RoundedCornerShape(16.dp)
-                                )
-                                .padding(12.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = "Ícono de información",
-                                    tint = Color(0xFF00796B),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = content,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = Color.Black,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Row {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text("15", style = MaterialTheme.typography.bodySmall)
-                                        Icon(
-                                            imageVector = Icons.Default.Visibility,
-                                            contentDescription = "Ícono de visto",
-                                            tint = Color(0xFF00796B),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text("5", style = MaterialTheme.typography.bodySmall)
-                                        Icon(
-                                            imageVector = Icons.Default.VisibilityOff,
-                                            contentDescription = "Ícono de no visto",
-                                            tint = Color(0xFF00796B),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.75f)
-                                .background(
-                                    if (sender == "Profesor lucho") Color(0xFFDCE8FF) else Color(0xFFE8D4FF),
+                                    if (sender == "Profe Lucho") Color(0xFFDCE8FF) else Color(0xFFE8D4FF),
                                     shape = RoundedCornerShape(16.dp)
                                 )
                                 .padding(12.dp)
                         ) {
                             Text(
                                 text = content,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = Color.Black
-                                )
+                                style = MaterialTheme.typography.bodyMedium.copy(color = Color.Black)
                             )
                         }
                     }
@@ -174,95 +127,58 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Campo para escribir mensajes y botón de envío
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextField(
-                value = message,
-                onValueChange = { message = it },
-                placeholder = { Text("Escribir mensaje...") },
+        // Mostrar campo de entrada solo si el UID no está restringido
+        if (currentUid != "L242j5RV6NX3pQOhNipRifLwARK2") {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .background(Color(0xFFF1F1F1), shape = RoundedCornerShape(16.dp)),
-                colors = TextFieldDefaults.textFieldColors(
-                    containerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                )
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = {
-                    // Acción para enviar mensaje
-                    message = ""
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFFB2F5E9), CircleShape)
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "Enviar mensaje",
-                    tint = Color(0xFF00796B)
+                TextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    placeholder = { Text("Escribir mensaje...") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Color(0xFFF1F1F1), shape = RoundedCornerShape(16.dp)),
+                    colors = TextFieldDefaults.textFieldColors(
+                        containerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
                 )
-            }
-        }
-    }
-
-    // Modal
-    if (showModal) {
-        AlertDialog(
-            onDismissRequest = { showModal = false },
-            title = { Text("Crear notificación", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    // Selector de opción
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start
-                    ) {
-                        RadioButton(
-                            selected = selectedOption == "Información",
-                            onClick = { selectedOption = "Información" }
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        val author = userMap[currentUid] ?: "Desconocido"
+                        val newMessage = hashMapOf(
+                            "autor" to author,
+                            "contenido" to message,
+                            "timestamp" to FieldValue.serverTimestamp(),
+                            "ramo" to ramo
                         )
-                        Text("Información")
-                        Spacer(modifier = Modifier.width(16.dp))
-                        RadioButton(
-                            selected = selectedOption == "Importante",
-                            onClick = { selectedOption = "Importante" }
-                        )
-                        Text("Importante")
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TextField(
-                        value = modalMessage,
-                        onValueChange = { modalMessage = it },
-                        placeholder = { Text("Escribe el mensaje aquí...") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.textFieldColors(
-                            containerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        )
+                        firestore.collection("mensajes").add(newMessage)
+                        message = ""
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color(0xFFB2F5E9), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Enviar mensaje",
+                        tint = Color(0xFF00796B)
                     )
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showModal = false
-                        // Acción para confirmar y enviar el mensaje
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
-                ) {
-                    Text("Enviar", color = Color.White)
-                }
             }
-        )
+        } else {
+            Text(
+                text = "No tienes permisos para enviar mensajes.",
+                color = Color.Red,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+        }
     }
 }
-

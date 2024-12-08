@@ -3,7 +3,12 @@ package com.example.notisys
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import com.example.notisys.ui.DashboardScreen
 import com.example.notisys.ui.LoginScreen
 import com.example.notisys.ui.MiniChatScreen
@@ -20,17 +25,26 @@ class MainActivity : ComponentActivity() {
         setContent {
             NotisysTheme {
                 // Estado para manejar la navegación entre pantallas
-                var currentScreen by remember {
-                    mutableStateOf(
-                        if (auth.currentUser != null) "dashboard" else "login" // Comprueba si hay un usuario autenticado
-                    )
-                }
+                var currentScreen by remember { mutableStateOf("loading") } // Pantalla inicial de carga
                 var selectedRamo by remember { mutableStateOf("") }
+
+                // Comprobar el estado del usuario autenticado al cargar
+                LaunchedEffect(Unit) {
+                    currentScreen = if (auth.currentUser != null) "dashboard" else "login"
+                }
 
                 // Lógica de navegación basada en el estado actual
                 when (currentScreen) {
+                    "loading" -> {
+                        // Pantalla de carga inicial
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .wrapContentSize(Alignment.Center)
+                        )
+                    }
                     "login" -> LoginScreen(onLoginSuccess = {
-                        currentScreen = "dashboard" // Navega al dashboard tras iniciar sesión
+                        currentScreen = "dashboard" // Navega al Dashboard tras iniciar sesión
                     })
                     "dashboard" -> DashboardScreen(
                         onRamoClick = { ramo ->

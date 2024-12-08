@@ -7,16 +7,46 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import android.util.Log
 
 @Composable
 fun DashboardScreen(onRamoClick: (String) -> Unit, onLogout: () -> Unit) {
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    val firestore = FirebaseFirestore.getInstance()
+    var ramos by remember { mutableStateOf(listOf<String>()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Recuperar ramos desde Firestore
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            Log.d("FirestoreDebug", "userID: $userId")
+            firestore.collection("ramos")
+                .whereArrayContains("usuario", userId)
+                .get()
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val fetchedRamos = task.result?.documents?.map { it.getString("nombre").orEmpty() } ?: listOf()
+                        ramos = fetchedRamos
+                    } else {
+                        println("Error al obtener ramos: ${task.exception?.message}")
+                    }
+                    isLoading = false
+                }
+        } else {
+            println("No se encontró un usuario autenticado.")
+            isLoading = false
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -58,54 +88,70 @@ fun DashboardScreen(onRamoClick: (String) -> Unit, onLogout: () -> Unit) {
             )
         }
 
-        // Lista de ramos
-        val ramos = listOf(
-            "Cálculo Sección I",
-            "Cálculo Sección II",
-            "Cálculo Sección III",
-            "Álgebra Sección I"
-        )
-
-        for (ramo in ramos) {
-            Card(
+        // Mostrar ramos o un mensaje de carga
+        if (isLoading) {
+            CircularProgressIndicator(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .clickable { onRamoClick(ramo) },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFDCE8FF))
+                    .fillMaxSize()
+                    .wrapContentSize(Alignment.Center)
+            )
+        } else if (ramos.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f), // Asegura que el mensaje ocupe el espacio disponible
+                contentAlignment = Alignment.Center // Centra el contenido
             ) {
-                Row(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Email,
-                        contentDescription = null,
+                Text(
+                    text = "No tienes ramos asignados.",
+                    style = MaterialTheme.typography.bodyLarge.copy(color = Color.Gray)
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier.weight(1f) // Asegura que los ramos ocupen el espacio disponible
+            ) {
+                for (ramo in ramos) {
+                    Card(
                         modifier = Modifier
-                            .size(40.dp)
-                            .padding(end = 16.dp)
-                    )
-                    Text(
-                        text = ramo,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable { onRamoClick(ramo) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFDCE8FF))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .padding(end = 16.dp)
+                            )
+                            Text(
+                                text = ramo,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
-
-        Spacer(modifier = Modifier.weight(1f)) // Espaciado flexible
 
         // Botón de "Cerrar Sesión"
         Button(
             onClick = { onLogout() },
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(top = 16.dp) // Espaciado adicional
                 .height(50.dp),
             shape = RoundedCornerShape(25.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
@@ -118,3 +164,4 @@ fun DashboardScreen(onRamoClick: (String) -> Unit, onLogout: () -> Unit) {
         }
     }
 }
+
