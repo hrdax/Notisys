@@ -17,13 +17,42 @@ import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Log
+import java.util.Calendar
 
 @Composable
-fun DashboardScreen(onRamoClick: (String) -> Unit, onLogout: () -> Unit) {
+fun DashboardScreen(onRamoClick: (String) -> Unit, onLogout: () -> Unit, sendNotification: (String, String, String) -> Unit ) {
     val userId = FirebaseAuth.getInstance().currentUser?.uid
     val firestore = FirebaseFirestore.getInstance()
     var ramos by remember { mutableStateOf(listOf<String>()) }
     var isLoading by remember { mutableStateOf(true) }
+
+    // Escuchar mensajes recientes
+    LaunchedEffect(Unit) {
+        val oneHourAgo = Calendar.getInstance().apply {
+            add(Calendar.HOUR, -1)
+        }.time
+
+        firestore.collection("mensajes")
+            .whereGreaterThan("timestamp", oneHourAgo)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    println("Error en Dashboard: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                snapshot?.documents?.forEach { document ->
+                    val tipo = document.getString("tipo") ?: "Normal"
+                    val mensaje = document.getString("mensaje") ?: ""
+                    val ramo = document.getString("ramo") ?: ""
+
+                    if (tipo == "Información" || tipo == "Importante") {
+                        println("Mensaje recibido en Dashboard: $mensaje")
+                        sendNotification(tipo, mensaje, ramo) // Llama a la función de notificación
+                    }
+                }
+            }
+    }
+
 
     // Recuperar ramos desde Firestore
     LaunchedEffect(userId) {

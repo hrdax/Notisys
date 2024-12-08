@@ -21,14 +21,43 @@ import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
+fun MiniChatScreen(ramo: String, onBack: () -> Unit, sendNotification: (String, String, String) -> Unit) {
     val auth = FirebaseAuth.getInstance()
     val firestore = FirebaseFirestore.getInstance()
     val currentUser = auth.currentUser
     val currentUid = currentUser?.uid
+
+    // Calcular el tiempo de hace una hora
+    val oneHourAgo = Calendar.getInstance().apply {
+        add(Calendar.HOUR, -1)
+    }.time
+
+
+    LaunchedEffect(Unit) {
+        firestore.collection("mensajes")
+            .whereEqualTo("ramo", ramo)
+            .whereGreaterThan("timestamp", oneHourAgo)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    println("Error en MiniChat: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                snapshot?.documents?.forEach { document ->
+                    val tipo = document.getString("tipo") ?: "Normal"
+                    val mensaje = document.getString("mensaje") ?: ""
+
+                    if (tipo == "Información" || tipo == "Importante") {
+                        println("Mensaje recibido en MiniChat: $mensaje")
+                        sendNotification(tipo, mensaje, ramo) // Llamamos a la función
+                    }
+                }
+            }
+    }
 
     // Autor basado en UID
     val authorMap = mapOf(
