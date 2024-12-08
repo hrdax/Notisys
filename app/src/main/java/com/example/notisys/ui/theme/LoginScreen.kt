@@ -1,5 +1,6 @@
 package com.example.notisys.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,22 +15,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun LoginScreen(modifier: Modifier = Modifier, onLoginSuccess: () -> Unit) {
-    // Estados para almacenar correo y contraseña
+    val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") } // Estado para mostrar errores
+    var errorMessage by remember { mutableStateOf("") }
 
-    // Diseño de la pantalla de login
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -102,11 +106,15 @@ fun LoginScreen(modifier: Modifier = Modifier, onLoginSuccess: () -> Unit) {
             // Botón para iniciar sesión
             Button(
                 onClick = {
-                    if (email == "admin" && password == "admin") {
-                        onLoginSuccess() // Redirige si las credenciales son correctas
-                    } else {
-                        errorMessage = "Correo o clave incorrectos"
-                    }
+                    auth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                Toast.makeText(context, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show()
+                                onLoginSuccess() // Navega al Dashboard
+                            } else {
+                                errorMessage = task.exception?.message ?: "Error al iniciar sesión"
+                            }
+                        }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
