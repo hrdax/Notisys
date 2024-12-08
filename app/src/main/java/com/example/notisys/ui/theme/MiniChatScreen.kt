@@ -29,10 +29,14 @@ import androidx.compose.ui.unit.sp
 fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
     var message by remember { mutableStateOf("") }
     var isMenuExpanded by remember { mutableStateOf(false) }
+    var showModal by remember { mutableStateOf(false) }
+    var selectedOption by remember { mutableStateOf("Información") } // Para la selección en el modal
+    var modalMessage by remember { mutableStateOf("") } // Mensaje del modal
+
     val messages = listOf(
         Pair("Profesor lucho", "No hay sistema"),
         Pair("Delegado Marcelo", "https://youtu.be/o9OHcPv-26k?si=9Dlcy2POHlzaqju"),
-        Pair("Profesor lucho", "Si hay examen") // Mensaje con íconos
+        Pair("Profesor lucho", "Si hay examen")
     )
 
     // Manejar el botón de atrás del dispositivo
@@ -68,7 +72,7 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
                         text = { Text("Crear notificación") },
                         onClick = {
                             isMenuExpanded = false
-                            // Acción del botón
+                            showModal = true // Muestra el modal
                         }
                     )
                 }
@@ -105,7 +109,7 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Info, // Cambia según el ícono disponible
+                                    imageVector = Icons.Default.Info,
                                     contentDescription = "Ícono de información",
                                     tint = Color(0xFF00796B),
                                     modifier = Modifier.size(24.dp)
@@ -125,8 +129,8 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
                                     ) {
                                         Text("15", style = MaterialTheme.typography.bodySmall)
                                         Icon(
-                                            imageVector = Icons.Default.Visibility, // Cambia según el ícono disponible
-                                            contentDescription = "Ícono de tiempo",
+                                            imageVector = Icons.Default.Visibility,
+                                            contentDescription = "Ícono de visto",
                                             tint = Color(0xFF00796B),
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -137,8 +141,8 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
                                     ) {
                                         Text("5", style = MaterialTheme.typography.bodySmall)
                                         Icon(
-                                            imageVector = Icons.Default.VisibilityOff, // Cambia según el ícono disponible
-                                            contentDescription = "Ícono de revisión",
+                                            imageVector = Icons.Default.VisibilityOff,
+                                            contentDescription = "Ícono de no visto",
                                             tint = Color(0xFF00796B),
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -208,4 +212,57 @@ fun MiniChatScreen(ramo: String, onBack: () -> Unit) {
             }
         }
     }
+
+    // Modal
+    if (showModal) {
+        AlertDialog(
+            onDismissRequest = { showModal = false },
+            title = { Text("Crear notificación", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    // Selector de opción
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        RadioButton(
+                            selected = selectedOption == "Información",
+                            onClick = { selectedOption = "Información" }
+                        )
+                        Text("Información")
+                        Spacer(modifier = Modifier.width(16.dp))
+                        RadioButton(
+                            selected = selectedOption == "Importante",
+                            onClick = { selectedOption = "Importante" }
+                        )
+                        Text("Importante")
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TextField(
+                        value = modalMessage,
+                        onValueChange = { modalMessage = it },
+                        placeholder = { Text("Escribe el mensaje aquí...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.textFieldColors(
+                            containerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showModal = false
+                        // Acción para confirmar y enviar el mensaje
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
+                ) {
+                    Text("Enviar", color = Color.White)
+                }
+            }
+        )
+    }
 }
+
